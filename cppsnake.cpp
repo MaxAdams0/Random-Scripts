@@ -12,10 +12,10 @@ using namespace std;
 #define KEY_LEFT 75
 #define KEY_RIGHT 77
 
-#define FIELD_HEIGHT 9
-#define FIELD_WIDTH 12
+#define FIELD_HEIGHT 25
+#define FIELD_WIDTH 25
 
-#define SNAKE_MAX_LENGTH (FIELD_HEIGHT*FIELD_WIDTH)
+int SNAKE_MAX_LENGTH = (FIELD_HEIGHT*FIELD_WIDTH);
 
 map<string, char> snakeset = {
     {"head", static_cast<char>(148)}, // 
@@ -58,8 +58,16 @@ int main()
 
     // The snake's "segments", or pixels
     SnakeSegment snake[SNAKE_MAX_LENGTH];
-    snake[0] = {4,1,2,true};
-    snake[1] = {4,0,2,false};
+    snake[0] = {4,2,2,true};
+    snake[1] = {4,1,2,false};
+    snake[2] = {4,0,2,false};
+
+    int snake_length = 3;
+
+    for (int i=0; i<snake_length; i++){
+        cout << snake[i].x << ", " << snake[i].y << ", " << snake[i].dir << endl;
+    }
+    
 
     // Game Loop
     while (true)
@@ -80,56 +88,54 @@ int main()
         if (key == 0 || key == 244) {
             switch(_getch()) {
                 case KEY_UP:
-                    if (snake[0].dir == 3) {break;}
                     snake[0].dir = 1;
                     break;
                 case KEY_DOWN:
-                    if (snake[0].dir == 1) {break;}
                     snake[0].dir = 3;
                     break;
                 case KEY_LEFT:
-                    if (snake[0].dir == 2) {break;}
                     snake[0].dir = 4;
                     break;
                 case KEY_RIGHT:
-                    if (snake[0].dir == 4) {break;}
                     snake[0].dir = 2;
                     break;
             }
         }
-        int snake_length = sizeof(snake)/sizeof(SnakeSegment);
 
-        for (int i=snake_length; i>0; i--){
-            snake[i].dir = snake[i-1].dir;
-        }
+        
 
         int dx = 0;
         int dy = 0;
         for (int i=0; i<snake_length; i++){
             switch(snake[i].dir){
                 case 1:
-                    dy = 1;
-                    break;
-                case 2:
                     dx = 1;
                     break;
+                case 2:
+                    dy = 1;
+                    break;
                 case 3:
-                    dy = -1;
+                    dx = -1;
                     break;
                 case 4:
-                    dx = -1;
+                    dy = -1;
                     break;
             }
             snake[i].x += dx;
             snake[i].y += dy;
         }
 
+        for (int col=0; col<12; col++){
+            for (int row=0; row<9; row++){
+                display_field[col][row] = gameset["void"];
+            }
+        }
+        system("cls");
         for (int i=0; i<snake_length; i++){
-            cout << snake[i].x << ", " << snake[i].y << endl;
+            cout << snake[i].x << ", " << snake[i].y << ", " << snake[i].dir << endl;
             display_field[snake[i].x][snake[i].y] = gameset["appl"];
         }
         
-        system("cls");
         for (auto &col : display_field) {
             for (auto &elem : col) {
                 cout << elem << " ";
