@@ -12,137 +12,161 @@ using namespace std;
 #define KEY_LEFT 75
 #define KEY_RIGHT 77
 
-#define FIELD_HEIGHT 25
-#define FIELD_WIDTH 25
-
-int SNAKE_MAX_LENGTH = (FIELD_HEIGHT*FIELD_WIDTH);
-
 map<string, char> snakeset = {
-    {"head", static_cast<char>(148)}, // 
-    {"vert", static_cast<char>(186)}, // 
-    {"horz", static_cast<char>(205)}, // 
-    {"topL", static_cast<char>(187)}, // 
-    {"topR", static_cast<char>(201)}, // 
-    {"botL", static_cast<char>(188)}, // 
-    {"botR", static_cast<char>(200)}  //
+    {"head", static_cast<char>(148)}, // ö
+    {"vert", static_cast<char>(186)}, // ║
+    {"horz", static_cast<char>(205)}, // ═
+    {"topL", static_cast<char>(187)}, // ╗
+    {"topR", static_cast<char>(201)}, // ╔
+    {"botL", static_cast<char>(188)}, // ╝
+    {"botR", static_cast<char>(200)}  // ╚
 };
 
 map<string, char> gameset = {
-    {"void", static_cast<char>(32)},  // [Blank Space]
+    {"void", static_cast<char>(32)},
     {"appl", static_cast<char>(254)}, // ■
-    {"arrL", static_cast<char>(17)},  // 
-    {"arrR", static_cast<char>(16)},  // 
-    {"arrU", static_cast<char>(30)},  // 
-    {"arrD", static_cast<char>(31)}   // 
+    {"wall", static_cast<char>(177)}  // ▒
 };
 
-struct SnakeSegment {
-    int x;
-    int y;
-    int dir; // direction; 1,2,3,4 = N,E,S,W
-    bool isHead; // is it the snake's head
+struct SnakeHead {
+    int posX;
+    int posY;
+    int direction; // direction; 1,2,3,4 = N,E,S,W = W,D,S,A
 };
+
+const int FIELD_HEIGHT = 18 + 2;  // add 2 to intended amount because of walls
+const int FIELD_WIDTH = 24 + 2;
+const int MAP_SIZE = (FIELD_HEIGHT*FIELD_WIDTH);
+
+char field[MAP_SIZE];
+bool gameOver = false;
+bool gamePaused = false;
+int game_tick = 0;
+SnakeHead snake = {
+    snake.posX = (int)(FIELD_WIDTH/2),
+    snake.posY = (int)(FIELD_HEIGHT/2),
+    snake.direction = 2
+};
+
+void inputHandler(int key_value) {
+    // Menu keys
+    switch(key_value) {
+            case KEY_ESC:
+                gameOver = true;
+                break;
+            case KEY_ENTER:
+                gamePaused = !gamePaused;
+                break;
+        }
+
+    // arrow keys can return 0 or 244 depending on num lock
+    // second call is for second value returned by arrow key
+    if (key_value == 0 || key_value == 244) {
+        switch(_getch()) {
+        case KEY_UP:
+            if (snake.direction != 3) snake.direction = 1;
+            break;
+        case KEY_DOWN:
+            if (snake.direction != 1) snake.direction = 3;
+            break;
+        case KEY_LEFT:
+            if (snake.direction != 2) snake.direction = 4;
+            break;
+        case KEY_RIGHT:
+            if (snake.direction != 4) snake.direction = 2;
+            break;
+        }
+    }
+}
+
+bool checkSnakeState() {
+    return false;
+}
+
+void printField() {
+    for (int i=0; i<MAP_SIZE; i++){
+        if (i%FIELD_WIDTH-1 == 0 ||
+            i%FIELD_WIDTH == 0 ||
+            i<FIELD_WIDTH || 
+            i>FIELD_WIDTH*(FIELD_HEIGHT-1)) {
+            field[i] = gameset["wall"];
+        } else {
+            field[i] = gameset["void"];
+        }
+    }
+
+    system("cls");
+
+    cout << snake.posX << ", " << snake.posY << ", " << snake.direction << " | " << game_tick << endl;
+    field[snake.posX+snake.posY * FIELD_WIDTH] = gameset["appl"];
+    
+    for (int i=1; i<MAP_SIZE; i++){
+        if (field[i] == gameset["wall"]) cout << field[i] << field[i];
+        else cout << field[i] << " ";
+        if (i%FIELD_WIDTH == 0) {cout << endl;}
+    }
+    // idk what's wrong, but theres a gap in bottom right. here's a lazy fix...
+    cout << gameset["wall"] << gameset["wall"];
+}
+
+void updatePosition() {
+    int dx = 0;
+    int dy = 0;
+    switch(snake.direction){
+    case 1:
+        dy = -1;
+        break;
+    case 2:
+        dx = 1;
+        break;
+    case 3:
+        dy = 1;
+        break;
+    case 4:
+        dx = -1;
+        break;
+    }
+
+    int newX = snake.posX + dx;
+    int newY = snake.posY + dy;
+
+    if (field[newX + newY * FIELD_WIDTH] == gameset["wall"]) {
+        gameOver = true;
+    } else {
+        snake.posX = newX;
+        snake.posY = newY;
+    }
+}
 
 int main()
 {
     // https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
     SetConsoleOutputCP(437); // CP437 (IBM437) Code
 
-    // The field viewable to the player
-    char display_field[12][9];
-    for (int col=0; col<12; col++){
-        for (int row=0; row<9; row++){
-            display_field[col][row] = gameset["void"];
-        }
-    }
-
-    // The snake's "segments", or pixels
-    SnakeSegment snake[SNAKE_MAX_LENGTH];
-    snake[0] = {4,2,2,true};
-    snake[1] = {4,1,2,false};
-    snake[2] = {4,0,2,false};
-
-    int snake_length = 3;
-
-    for (int i=0; i<snake_length; i++){
-        cout << snake[i].x << ", " << snake[i].y << ", " << snake[i].dir << endl;
-    }
-    
+    int snake_length = 1;
 
     // Game Loop
-    while (true)
+    while (!gameOver)
     {
-        int key = _getch(); // get key value
+        if (kbhit()) inputHandler(getch());
 
-        switch(key) {
-            case KEY_ESC:
-                //cout << "ESC" << endl;
-                break;
-            case KEY_ENTER:
-                //cout << "ENTER" << endl;
-                break;
+        if (gamePaused) continue;
+
+        if (game_tick%5 == 0) {
+            updatePosition();
+            printField();
         }
 
-        // arrow keys can return 0 or 244 depending on num lock
-        // second call is for second value returned by arrow key
-        if (key == 0 || key == 244) {
-            switch(_getch()) {
-                case KEY_UP:
-                    snake[0].dir = 1;
-                    break;
-                case KEY_DOWN:
-                    snake[0].dir = 3;
-                    break;
-                case KEY_LEFT:
-                    snake[0].dir = 4;
-                    break;
-                case KEY_RIGHT:
-                    snake[0].dir = 2;
-                    break;
-            }
-        }
-
-        
-
-        int dx = 0;
-        int dy = 0;
-        for (int i=0; i<snake_length; i++){
-            switch(snake[i].dir){
-                case 1:
-                    dx = 1;
-                    break;
-                case 2:
-                    dy = 1;
-                    break;
-                case 3:
-                    dx = -1;
-                    break;
-                case 4:
-                    dy = -1;
-                    break;
-            }
-            snake[i].x += dx;
-            snake[i].y += dy;
-        }
-
-        for (int col=0; col<12; col++){
-            for (int row=0; row<9; row++){
-                display_field[col][row] = gameset["void"];
-            }
-        }
-        system("cls");
-        for (int i=0; i<snake_length; i++){
-            cout << snake[i].x << ", " << snake[i].y << ", " << snake[i].dir << endl;
-            display_field[snake[i].x][snake[i].y] = gameset["appl"];
-        }
-        
-        for (auto &col : display_field) {
-            for (auto &elem : col) {
-                cout << elem << " ";
-            }
-            cout << endl;
-        }
+        game_tick++;
+        Sleep(10);
     }
 
     return 0;
 }
+
+/*TO DO:
+- apple generator
+- snake's tail
+- self-collision
+- cpu clock-based tickrate instead of Sleep()
+- snake bendy characters (topL,topR,botL,botR)*/
