@@ -14,6 +14,7 @@ using namespace std;
 
 map<string, char> snakeset = {
     {"head", static_cast<char>(148)}, // ö
+    {"tail", static_cast<char>(240)}, // TEMPORARY
     {"vert", static_cast<char>(186)}, // ║
     {"horz", static_cast<char>(205)}, // ═
     {"topL", static_cast<char>(187)}, // ╗
@@ -34,23 +35,33 @@ struct SnakeHead {
     int direction; // direction; 1,2,3,4 = N,E,S,W = W,D,S,A
 };
 
-const int FIELD_HEIGHT = 18 + 2;  // add 2 to intended amount because of walls
-const int FIELD_WIDTH = 24 + 2;
-const int MAP_SIZE = (FIELD_HEIGHT*FIELD_WIDTH);
+struct SnakeTail {
+    int posX;
+    int posY;
+};
 
-char field[MAP_SIZE];
+const int FIELD_HEIGHT = 20;  // add 2 to intended amount because of walls
+const int FIELD_WIDTH = 26;
+const int FIELD_SIZE = FIELD_HEIGHT*FIELD_WIDTH; // The total field size, including walls
+const int FIELD_PA_SIZE = (FIELD_HEIGHT-2)*(FIELD_WIDTH-2); // field size only accessable by snake
+
+char field[FIELD_SIZE];
+
 bool gameOver = false;
 bool gamePaused = false;
-int game_tick = 0;
+int gameTick = 0;
+int tailLength = 1;
+
 SnakeHead snake = {
     snake.posX = (int)(FIELD_WIDTH/2),
     snake.posY = (int)(FIELD_HEIGHT/2),
     snake.direction = 2
 };
+SnakeTail tail[FIELD_PA_SIZE];
 
-void inputHandler(int key_value) {
+void inputHandler(int keyValue) {
     // Menu keys
-    switch(key_value) {
+    switch(keyValue) {
             case KEY_ESC:
                 gameOver = true;
                 break;
@@ -61,7 +72,7 @@ void inputHandler(int key_value) {
 
     // arrow keys can return 0 or 244 depending on num lock
     // second call is for second value returned by arrow key
-    if (key_value == 0 || key_value == 244) {
+    if (keyValue == 0 || keyValue == 244) {
         switch(_getch()) {
         case KEY_UP:
             if (snake.direction != 3) snake.direction = 1;
@@ -84,7 +95,7 @@ bool checkSnakeState() {
 }
 
 void printField() {
-    for (int i=0; i<MAP_SIZE; i++){
+    for (int i=0; i<FIELD_SIZE; i++){
         if (i%FIELD_WIDTH-1 == 0 ||
             i%FIELD_WIDTH == 0 ||
             i<FIELD_WIDTH || 
@@ -97,10 +108,14 @@ void printField() {
 
     system("cls");
 
-    cout << snake.posX << ", " << snake.posY << ", " << snake.direction << " | " << game_tick << endl;
-    field[snake.posX+snake.posY * FIELD_WIDTH] = gameset["appl"];
+    cout << snake.posX << ", " << snake.posY << ", " << snake.direction << " | " << gameTick << endl;
+    field[snake.posX+snake.posY * FIELD_WIDTH] = snakeset["head"];
+
+    for (int i=0; i<tailLength; i++) {
+        field[tail[i].posX + tail[i].posY * FIELD_WIDTH] = snakeset["tail"];
+    }
     
-    for (int i=1; i<MAP_SIZE; i++){
+    for (int i=1; i<FIELD_SIZE; i++){
         if (field[i] == gameset["wall"]) cout << field[i] << field[i];
         else cout << field[i] << " ";
         if (i%FIELD_WIDTH == 0) {cout << endl;}
@@ -109,7 +124,7 @@ void printField() {
     cout << gameset["wall"] << gameset["wall"];
 }
 
-void updatePosition() {
+void updateSnake() {
     int dx = 0;
     int dy = 0;
     switch(snake.direction){
@@ -130,6 +145,20 @@ void updatePosition() {
     int newX = snake.posX + dx;
     int newY = snake.posY + dy;
 
+    if (field[newX + newY * FIELD_WIDTH] == gameset["appl"]) {
+        tailLength++;
+    }
+
+    if (tailLength > 0) {
+        tail[0].posX = snake.posX;
+        tail[0].posY = snake.posY;
+    }
+
+    for (int i=tailLength; i>1; i--) {
+        tail[i].posX = tail[i-1].posX;
+        tail[i].posY = tail[i-1].posY;
+    }
+    
     if (field[newX + newY * FIELD_WIDTH] == gameset["wall"]) {
         gameOver = true;
     } else {
@@ -143,8 +172,6 @@ int main()
     // https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
     SetConsoleOutputCP(437); // CP437 (IBM437) Code
 
-    int snake_length = 1;
-
     // Game Loop
     while (!gameOver)
     {
@@ -152,12 +179,12 @@ int main()
 
         if (gamePaused) continue;
 
-        if (game_tick%5 == 0) {
-            updatePosition();
+        if (gameTick % 5 == 0) {
+            updateSnake();
             printField();
         }
 
-        game_tick++;
+        gameTick++;
         Sleep(10);
     }
 
